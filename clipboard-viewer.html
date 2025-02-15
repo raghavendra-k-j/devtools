@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClipboardViewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding-top: 60px; }
+        #output-container { display: none; }
+        .placeholder { color: #999; text-align: center; padding: 50px; }
+        .pre-container { background: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #ddd; }
+        .preview-container { border: 1px solid #ddd; padding: 10px; min-height: 100px; background: white; }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">📋 ClipboardViewer</a>
+        </div>
+    </nav>
+
+    <!-- Placeholder (Before Paste) -->
+    <div id="placeholder" class="placeholder">
+        Press <b>Ctrl + V</b> to paste something and view it here.
+    </div>
+
+    <!-- Clipboard Output Viewer -->
+    <div id="output-container" class="container mt-4">
+        <h4 class="mb-3">📄 Clipboard Content</h4>
+        <ul class="nav nav-tabs" id="clipboardTabs">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#plainTextTab">Plain Text</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#htmlTab">HTML</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#rtfTab">RTF</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#imageTab">Image</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#jsonTab">JSON</a>
+            </li>
+        </ul>
+
+        <div class="tab-content mt-3">
+            <!-- Plain Text -->
+            <div class="tab-pane fade show active" id="plainTextTab">
+                <div class="pre-container"><pre id="plainTextContent">No text data found</pre></div>
+            </div>
+
+            <!-- HTML Viewer -->
+            <div class="tab-pane fade" id="htmlTab">
+                <div class="d-flex justify-content-between">
+                    <h5>HTML Content</h5>
+                    <div>
+                        <label class="form-check-label me-2">Toggle View:</label>
+                        <input type="checkbox" id="htmlToggle" class="form-check-input">
+                    </div>
+                </div>
+                <div id="htmlPreview" class="preview-container"></div>
+                <div id="htmlCode" class="pre-container" style="display:none;"><pre id="htmlContent"></pre></div>
+            </div>
+
+            <!-- RTF Viewer -->
+            <div class="tab-pane fade" id="rtfTab">
+                <div class="pre-container"><pre id="rtfContent">No RTF data found</pre></div>
+            </div>
+
+            <!-- Image Viewer -->
+            <div class="tab-pane fade" id="imageTab">
+                <div id="imageContent" class="text-center">No image data found</div>
+            </div>
+
+            <!-- JSON Viewer -->
+            <div class="tab-pane fade" id="jsonTab">
+                <div class="pre-container"><pre id="jsonContent">No JSON data found</pre></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("paste", async function(event) {
+            let clipboardData = event.clipboardData || navigator.clipboard;
+            let outputContainer = document.getElementById("output-container");
+            let placeholder = document.getElementById("placeholder");
+
+            // Show output container & hide placeholder
+            outputContainer.style.display = "block";
+            placeholder.style.display = "none";
+
+            // Clear previous content
+            document.getElementById("plainTextContent").textContent = "No text data found";
+            document.getElementById("htmlContent").textContent = "No HTML data found";
+            document.getElementById("htmlPreview").innerHTML = "";
+            document.getElementById("rtfContent").textContent = "No RTF data found";
+            document.getElementById("imageContent").innerHTML = "No image data found";
+            document.getElementById("jsonContent").textContent = "No JSON data found";
+
+            // Process clipboard data
+            let types = event.clipboardData.types;
+
+            // Plain Text
+            if (types.includes("text/plain")) {
+                let text = event.clipboardData.getData("text/plain");
+                document.getElementById("plainTextContent").textContent = text;
+            }
+
+            // HTML Content
+            if (types.includes("text/html")) {
+                let html = event.clipboardData.getData("text/html");
+                document.getElementById("htmlContent").textContent = html;
+                document.getElementById("htmlPreview").innerHTML = html;
+            }
+
+            // RTF Content
+            if (types.includes("text/rtf")) {
+                let rtf = event.clipboardData.getData("text/rtf");
+                document.getElementById("rtfContent").textContent = rtf;
+            }
+
+            // JSON Data (Application-specific)
+            if (types.includes("application/json")) {
+                let jsonData = event.clipboardData.getData("application/json");
+                try {
+                    let parsedJson = JSON.parse(jsonData);
+                    document.getElementById("jsonContent").textContent = JSON.stringify(parsedJson, null, 2);
+                } catch (error) {
+                    document.getElementById("jsonContent").textContent = "Invalid JSON";
+                }
+            }
+
+            // Image Data
+            for (let item of event.clipboardData.items) {
+                if (item.type.startsWith("image")) {
+                    let blob = item.getAsFile();
+                    let reader = new FileReader();
+
+                    reader.onload = function(e) {
+                        document.getElementById("imageContent").innerHTML = `<img src="${e.target.result}" class="img-fluid border">`;
+                    };
+
+                    reader.readAsDataURL(blob);
+                }
+            }
+        });
+
+        // Toggle HTML Viewer (Code <-> Preview)
+        document.getElementById("htmlToggle").addEventListener("change", function() {
+            let preview = document.getElementById("htmlPreview");
+            let code = document.getElementById("htmlCode");
+            if (this.checked) {
+                preview.style.display = "none";
+                code.style.display = "block";
+            } else {
+                preview.style.display = "block";
+                code.style.display = "none";
+            }
+        });
+    </script>
+
+</body>
+</html>
