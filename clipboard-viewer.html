@@ -3,46 +3,150 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clipboard Data Viewer</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
-        #output { margin-top: 20px; padding: 10px; border: 1px solid #ddd; background: #f9f9f9; }
-        img { max-width: 100%; margin-top: 10px; border: 1px solid #ccc; }
-        pre { text-align: left; white-space: pre-wrap; word-wrap: break-word; background: #eee; padding: 10px; }
-    </style>
+    <title>Clipboard Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-gray-100 text-gray-900">
 
-    <h2>Clipboard Data Viewer</h2>
-    <p>Paste (Ctrl + V) something here, and I'll show what clipboard data is available!</p>
-    <div id="output">📝 Paste something to see the clipboard data...</div>
+    <!-- Navbar -->
+    <nav class="bg-gray-900 text-white py-4 shadow-lg">
+        <div class="container mx-auto text-center text-lg font-semibold">
+            📋 Clipboard Viewer
+        </div>
+    </nav>
+
+    <!-- Placeholder (Before Paste) -->
+    <div id="placeholder" class="flex items-center justify-center h-screen text-gray-500 text-lg">
+        Press <b class="mx-1">Ctrl + V</b> to paste something and view it here.
+    </div>
+
+    <!-- Clipboard Output Viewer -->
+    <div id="output-container" class="hidden max-w-4xl mx-auto mt-10 bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-bold mb-4">📄 Clipboard Content</h2>
+        <div id="clipboardTabs" class="flex space-x-2 border-b pb-2"></div>
+        <div id="clipboardContent" class="mt-4"></div>
+    </div>
 
     <script>
         document.addEventListener("paste", async function(event) {
             let clipboardData = event.clipboardData || navigator.clipboard;
-            let outputDiv = document.getElementById("output");
-            outputDiv.innerHTML = "<h3>Clipboard Data:</h3>";
+            let outputContainer = document.getElementById("output-container");
+            let placeholder = document.getElementById("placeholder");
+            let tabsContainer = document.getElementById("clipboardTabs");
+            let contentContainer = document.getElementById("clipboardContent");
 
-            // List all clipboard data types
+            // Show output container & hide placeholder
+            outputContainer.classList.remove("hidden");
+            placeholder.classList.add("hidden");
+
+            // Clear previous tabs & content
+            tabsContainer.innerHTML = "";
+            contentContainer.innerHTML = "";
+
             let types = event.clipboardData.types;
-            outputDiv.innerHTML += `<p><strong>Available Formats:</strong> ${types.join(', ')}</p>`;
+            let firstTabId = null;
 
-            // Handle Plain Text Data
-            if (event.clipboardData.getData("text/plain")) {
-                let plainText = event.clipboardData.getData("text/plain");
-                outputDiv.innerHTML += `<h4>Plain Text:</h4><pre>${plainText}</pre>`;
+            function addTab(format, label, content) {
+                let tabId = format + "Tab";
+                if (!firstTabId) firstTabId = tabId;
+
+                // Add tab button
+                let tab = document.createElement("button");
+                tab.className = `px-4 py-2 rounded-t-lg text-sm font-semibold ${
+                    firstTabId === tabId ? "bg-gray-900 text-white" : "bg-gray-200"
+                }`;
+                tab.innerText = label;
+                tab.onclick = () => switchTab(tabId);
+                tabsContainer.appendChild(tab);
+
+                // Add tab content
+                let tabContent = document.createElement("div");
+                tabContent.className = `tab-pane ${firstTabId === tabId ? "block" : "hidden"} p-4 border bg-gray-50 rounded-lg`;
+                tabContent.id = tabId;
+                tabContent.innerHTML = content;
+                contentContainer.appendChild(tabContent);
             }
 
-            // Handle HTML Data
-            if (event.clipboardData.getData("text/html")) {
-                let htmlText = event.clipboardData.getData("text/html");
-                outputDiv.innerHTML += `<h4>HTML Data:</h4><pre>${htmlText}</pre>`;
+            function switchTab(activeTabId) {
+                document.querySelectorAll(".tab-pane").forEach(tab => tab.classList.add("hidden"));
+                document.getElementById(activeTabId).classList.remove("hidden");
+
+                document.querySelectorAll("#clipboardTabs button").forEach(btn => {
+                    btn.classList.remove("bg-gray-900", "text-white");
+                    btn.classList.add("bg-gray-200");
+                });
+                event.target.classList.add("bg-gray-900", "text-white");
             }
 
-            // Handle RTF Data (Rich Text Format)
-            if (event.clipboardData.getData("text/rtf")) {
-                let rtfText = event.clipboardData.getData("text/rtf");
-                outputDiv.innerHTML += `<h4>RTF Data (Rich Text Format):</h4><pre>${rtfText}</pre>`;
+            // Handle Plain Text
+            if (types.includes("text/plain")) {
+                let text = event.clipboardData.getData("text/plain");
+                addTab("plainText", "Plain Text", `<pre class="p-2 bg-gray-200 rounded text-sm">${text}</pre>`);
+            }
+
+            // Handle HTML Content (Using iframe)
+            if (types.includes("text/html")) {
+                let html = event.clipboardData.getData("text/html");
+
+                let htmlId = "htmlTab";
+                if (!firstTabId) firstTabId = htmlId;
+
+                let tab = document.createElement("button");
+                tab.className = `px-4 py-2 rounded-t-lg text-sm font-semibold ${
+                    firstTabId === htmlId ? "bg-gray-900 text-white" : "bg-gray-200"
+                }`;
+                tab.innerText = "HTML";
+                tab.onclick = () => switchTab(htmlId);
+                tabsContainer.appendChild(tab);
+
+                let tabContent = document.createElement("div");
+                tabContent.className = `tab-pane ${firstTabId === htmlId ? "block" : "hidden"} p-4 border bg-gray-50 rounded-lg`;
+                tabContent.id = htmlId;
+                tabContent.innerHTML = `
+                    <div class="flex justify-between">
+                        <span class="font-bold">HTML Content</span>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="htmlToggle" class="form-checkbox">
+                            <span class="text-sm">Code View</span>
+                        </label>
+                    </div>
+                    <iframe id="htmlFrame" class="w-full h-64 border rounded mt-2"></iframe>
+                    <pre id="htmlCode" class="p-2 bg-gray-200 rounded text-sm hidden">${escapeHtml(html)}</pre>
+                `;
+                contentContainer.appendChild(tabContent);
+
+                // Inject HTML into iframe
+                setTimeout(() => {
+                    let iframe = document.getElementById("htmlFrame").contentWindow.document;
+                    iframe.open();
+                    iframe.write(html);
+                    iframe.close();
+                }, 100);
+
+                // Toggle between Code View & iframe
+                setTimeout(() => {
+                    document.getElementById("htmlToggle").addEventListener("change", function() {
+                        document.getElementById("htmlFrame").classList.toggle("hidden");
+                        document.getElementById("htmlCode").classList.toggle("hidden");
+                    });
+                }, 100);
+            }
+
+            // Handle RTF Content
+            if (types.includes("text/rtf")) {
+                let rtf = event.clipboardData.getData("text/rtf");
+                addTab("rtf", "RTF", `<pre class="p-2 bg-gray-200 rounded text-sm">${rtf}</pre>`);
+            }
+
+            // Handle JSON Data
+            if (types.includes("application/json")) {
+                let jsonData = event.clipboardData.getData("application/json");
+                try {
+                    let parsedJson = JSON.parse(jsonData);
+                    addTab("json", "JSON", `<pre class="p-2 bg-gray-200 rounded text-sm">${JSON.stringify(parsedJson, null, 2)}</pre>`);
+                } catch (error) {
+                    addTab("json", "JSON", "<pre class='p-2 bg-red-200 rounded text-sm'>Invalid JSON</pre>");
+                }
             }
 
             // Handle Image Data
@@ -50,15 +154,19 @@
                 if (item.type.startsWith("image")) {
                     let blob = item.getAsFile();
                     let reader = new FileReader();
-                    
-                    reader.onload = function(e) {
-                        outputDiv.innerHTML += `<h4>Image Data:</h4><img src="${e.target.result}" alt="Pasted Image">`;
-                    };
 
+                    reader.onload = function(e) {
+                        addTab("image", "Image", `<img src="${e.target.result}" class="w-full border rounded-lg">`);
+                    };
                     reader.readAsDataURL(blob);
                 }
             }
         });
+
+        // Escape HTML for displaying raw HTML content
+        function escapeHtml(html) {
+            return html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
     </script>
 
 </body>
