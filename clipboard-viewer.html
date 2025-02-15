@@ -50,7 +50,7 @@
                 let tabId = format + "Tab";
                 if (!firstTabId) firstTabId = tabId;
 
-                // Add tab
+                // Add tab button
                 let tab = document.createElement("button");
                 tab.className = `px-4 py-2 rounded-t-lg text-sm font-semibold ${
                     firstTabId === tabId ? "bg-gray-900 text-white" : "bg-gray-200"
@@ -59,11 +59,11 @@
                 tab.onclick = () => switchTab(tabId);
                 tabsContainer.appendChild(tab);
 
-                // Add content
+                // Add tab content
                 let tabContent = document.createElement("div");
                 tabContent.className = `tab-pane ${firstTabId === tabId ? "block" : "hidden"} p-4 border bg-gray-50 rounded-lg`;
                 tabContent.id = tabId;
-                tabContent.innerHTML = `<pre class="p-2 bg-gray-200 rounded text-sm">${content}</pre>`;
+                tabContent.innerHTML = content;
                 contentContainer.appendChild(tabContent);
             }
 
@@ -78,15 +78,16 @@
                 event.target.classList.add("bg-gray-900", "text-white");
             }
 
-            // Plain Text
+            // Handle Plain Text
             if (types.includes("text/plain")) {
                 let text = event.clipboardData.getData("text/plain");
-                addTab("plainText", "Plain Text", `<pre>${text}</pre>`);
+                addTab("plainText", "Plain Text", `<pre class="p-2 bg-gray-200 rounded text-sm">${text}</pre>`);
             }
 
-            // HTML Content
+            // Handle HTML Content (Using iframe)
             if (types.includes("text/html")) {
                 let html = event.clipboardData.getData("text/html");
+
                 let htmlId = "htmlTab";
                 if (!firstTabId) firstTabId = htmlId;
 
@@ -109,37 +110,46 @@
                             <span class="text-sm">Code View</span>
                         </label>
                     </div>
-                    <div id="htmlPreview" class="mt-2 border p-2 bg-white rounded">${html}</div>
-                    <pre id="htmlCode" class="p-2 bg-gray-200 rounded text-sm hidden">${html}</pre>
+                    <iframe id="htmlFrame" class="w-full h-64 border rounded mt-2"></iframe>
+                    <pre id="htmlCode" class="p-2 bg-gray-200 rounded text-sm hidden">${escapeHtml(html)}</pre>
                 `;
                 contentContainer.appendChild(tabContent);
 
+                // Inject HTML into iframe
+                setTimeout(() => {
+                    let iframe = document.getElementById("htmlFrame").contentWindow.document;
+                    iframe.open();
+                    iframe.write(html);
+                    iframe.close();
+                }, 100);
+
+                // Toggle between Code View & iframe
                 setTimeout(() => {
                     document.getElementById("htmlToggle").addEventListener("change", function() {
-                        document.getElementById("htmlPreview").classList.toggle("hidden");
+                        document.getElementById("htmlFrame").classList.toggle("hidden");
                         document.getElementById("htmlCode").classList.toggle("hidden");
                     });
                 }, 100);
             }
 
-            // RTF Content
+            // Handle RTF Content
             if (types.includes("text/rtf")) {
                 let rtf = event.clipboardData.getData("text/rtf");
-                addTab("rtf", "RTF", `<pre>${rtf}</pre>`);
+                addTab("rtf", "RTF", `<pre class="p-2 bg-gray-200 rounded text-sm">${rtf}</pre>`);
             }
 
-            // JSON Data
+            // Handle JSON Data
             if (types.includes("application/json")) {
                 let jsonData = event.clipboardData.getData("application/json");
                 try {
                     let parsedJson = JSON.parse(jsonData);
-                    addTab("json", "JSON", `<pre>${JSON.stringify(parsedJson, null, 2)}</pre>`);
+                    addTab("json", "JSON", `<pre class="p-2 bg-gray-200 rounded text-sm">${JSON.stringify(parsedJson, null, 2)}</pre>`);
                 } catch (error) {
-                    addTab("json", "JSON", "<pre>Invalid JSON</pre>");
+                    addTab("json", "JSON", "<pre class='p-2 bg-red-200 rounded text-sm'>Invalid JSON</pre>");
                 }
             }
 
-            // Image Data
+            // Handle Image Data
             for (let item of event.clipboardData.items) {
                 if (item.type.startsWith("image")) {
                     let blob = item.getAsFile();
@@ -152,6 +162,11 @@
                 }
             }
         });
+
+        // Escape HTML for displaying raw HTML content
+        function escapeHtml(html) {
+            return html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
     </script>
 
 </body>
